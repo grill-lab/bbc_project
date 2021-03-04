@@ -18,10 +18,14 @@ def get_entity_from_wiki_id(wiki_id):
 def find_all_mentions(text, entity):
     output = []
     entity_len = len(entity)
-    start_indices = [m.start() for m in re.finditer(entity, text)]
-    for start_index in start_indices:
-        output.append([start_index, start_index + entity_len])
-    return output
+    try:
+        start_indices = [m.start() for m in re.finditer(entity, text)]
+        for start_index in start_indices:
+            output.append([start_index, start_index + entity_len])
+        return output
+    except:
+        print(entity)
+        return []
 
 def convert_wikipedia_to_wikidata(wp_name):
     '''

@@ -102,13 +102,13 @@ def extract_all_content(input_json_list):
         raw_json[article_id] = json_content
 
         if article_id not in bbc_article_dict:
-            bbc_article_dict[article_id] = []
+            bbc_article_dict[article_id] = {}
             bbc_related_links[article_id] = []
             bbc_thing_tags[article_id] = []
 
         if article_id in last_updated_dict:
             if (last_updated_date > last_updated_dict[article_id]):
-                bbc_article_dict[article_id] = []
+                bbc_article_dict[article_id] = {}
                 bbc_related_links[article_id] = []
                 bbc_thing_tags[article_id] = []
             else:
@@ -118,7 +118,8 @@ def extract_all_content(input_json_list):
         title = json_content['promo']['headlines']['headline']
         contents = json_content['content']['blocks']
         extracted_text, potential_related_candidates = bbc_extract_full_block(contents)
-        bbc_article_dict[article_id] = [title] + extracted_text
+        bbc_article_dict[article_id]["title"] = title
+        bbc_article_dict[article_id]["content"] = extracted_text
 
         related_content_main_block = json_content['relatedContent']
         if "groups" in related_content_main_block:
@@ -139,7 +140,8 @@ def extract_all_content(input_json_list):
             
 def get_passages(article_dict, passage_size=100, window_size=50):
     output_dict = {}
-    for article_id, content_as_list in article_dict.items():
+    for article_id, article_content in article_dict.items():
+        content_as_list = article_content["content"]
         slice_start = 0
         slice_end = passage_size
         sub_id = 0
@@ -156,7 +158,7 @@ def get_passages(article_dict, passage_size=100, window_size=50):
         output_dict[f"{article_id}.{sub_id}"] = passage
     return output_dict
 
-def trec_formatter(doc_id, body):
+def trec_formatter(doc_id, body, title):
     url = "https://bbc.co.uk/" + doc_id[25:]
     content = ""
     content = (u'<DOC>\n')
@@ -168,6 +170,10 @@ def trec_formatter(doc_id, body):
     content += (u'\n')
     content += (u'</DOCHDR>\n')
     content += (u'<HTML>\n')
+    content += (u'<HEAD>\n')
+    content += title
+    content += (u'\n')
+    content += (u'</HEAD>\n')
     content += (u'<BODY>\n')
     content += body
     content += (u'\n')
@@ -177,18 +183,20 @@ def trec_formatter(doc_id, body):
     return content
 
 def to_trec_web(article_dict, passage_dict, output_folder):
-    doc_only_output_file = open(f"{output_folder}trec_full_doc.gov2","w")
-    passage_only_output_file = open(f"{output_folder}trec_full_passages.gov2","w")
+    doc_only_output_file = open(f"{output_folder}trec_full_doc.trecweb","w")
+    passage_only_output_file = open(f"{output_folder}trec_full_passages.trecweb","w")
     mixed_output_file = open(f"{output_folder}trec_mixed.gov2","w")
     
-    for article_id, content_as_list in article_dict.items():
+    for article_id, article_content in article_dict.items():
+        title = article_content["title"]
+        content_as_list = article_content["content"]
         content_as_string = " ".join(content_as_list)
-        trec_content = trec_formatter(article_id, content_as_string)
+        trec_content = trec_formatter(article_id, content_as_string, title)
         doc_only_output_file.write(trec_content)
         mixed_output_file.write(trec_content)
     
     for passage_id, passage in passage_dict.items():
-        trec_content = trec_formatter(passage_id, passage)
+        trec_content = trec_formatter(passage_id, passage, "")
         passage_only_output_file.write(trec_content)
         mixed_output_file.write(trec_content)
     
@@ -205,7 +213,8 @@ def to_json(article_dict, passage_dict, output_folder):
     passage_only_json = []
     mixed_json = []
     
-    for article_id, content_as_list in article_dict.items():
+    for article_id, article_content in article_dict.items():
+        content_as_list = article_content["contents"]
         content_as_string = " ".join(content_as_list)
         to_append_dict = {
                 "id": article_id,
@@ -216,7 +225,7 @@ def to_json(article_dict, passage_dict, output_folder):
         
     for passage_id, passage in passage_dict.items():
         to_append_dict = {
-                "id": article_id,
+                "id": passage_id,
                 "contents": passage
             }
         passage_only_json.append(to_append_dict)

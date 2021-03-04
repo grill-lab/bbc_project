@@ -25,7 +25,7 @@ def find_all_mentions(text, entity):
         output.append([start_index, start_index + entity_len])
     return output
 
-def convert_prodigy_to_qrel(prodigy_file, clean_nil):
+def convert_prodigy_to_qrel(prodigy_file, clean_nil, salience_threshold):
     annotation_list = []
     with open(prodigy_file) as f:
         for line in f:
@@ -91,30 +91,33 @@ def convert_prodigy_to_qrel(prodigy_file, clean_nil):
             continue
         unique_annotation_set.append((target_id, chosen_wiki_id))
         
-        
+        if "salience_rating" not in annotation:
+            continue
+        if "persona_relevance" not in annotation:
+            continue
         salience = annotation["salience_rating"]
         persona_relevance = annotation["persona_relevance"]
         link_accuracy = annotation["link_accuracy"]
-        
-        if target_id not in annotations_dict:
-            annotations_dict[target_id] = []
-        entity_dict = {
-            "entity": entity,
-            "id": chosen_wiki_id,
-            "mentions": all_mentions,
-            "salience": salience,
-            "persona_relevance": persona_relevance,
-            "match_type": link_accuracy
-            
-        }
-        annotations_dict[target_id].append(entity_dict)
+        if int(salience) > salience_threshold:
+            if target_id not in annotations_dict:
+                annotations_dict[target_id] = []
+            entity_dict = {
+                "entity": entity,
+                "id": chosen_wiki_id,
+                "mentions": all_mentions,
+                "salience": salience,
+                "persona_relevance": persona_relevance,
+                "match_type": link_accuracy
+
+            }
+            annotations_dict[target_id].append(entity_dict)
     #json.dump(annotations_dict, output_file)
         #output_file.write(f"{target_id}\t0\t{chosen_wiki_entity}\t1\n")
     #output_file.close()
     
-def to_trec(output_folder):
-    output_file = open(f"{output_folder}trec_qrel.csv","w")
-    output_file_2 = open(f"{output_folder}trec_qrel_labels.csv","w")
+def to_trec(output_folder, qrel_name):
+    output_file = open(f"{output_folder}{qrel_name}_trec_qrel.csv","w")
+    output_file_2 = open(f"{output_folder}{qrel_name}_trec_qrel_labels.csv","w")
     for doc_id, entity_list in annotations_dict.items():
         for entity in entity_list:
             entity_id = entity['id'].replace(' ','')
@@ -129,11 +132,11 @@ def to_trec(output_folder):
     output_file.close()
     output_file_2.close()
 
-def to_genre(output_folder):
+def to_genre(output_folder, qrel_name):
     output_list_id = []
     output_list_labels = []
-    output_file_id = open(f"{output_folder}genre_format_qrel.pickle","wb")
-    output_file_labels = open(f"{output_folder}genre_format_qrel_labels.pickle","wb")
+    output_file_id = open(f"{output_folder}{qrel_name}_genre_format_qrel.pickle","wb")
+    output_file_labels = open(f"{output_folder}{qrel_name}_genre_format_qrel_labels.pickle","wb")
     for doc_id, entity_list in annotations_dict.items():
         for entity in entity_list:
             entity_id = entity['id'].replace(' ','')
@@ -157,20 +160,24 @@ if __name__=="__main__":
     parser.add_argument('input_file')
     parser.add_argument('output_folder_path', help='output folder to write out, not filename, should also end in /')
     parser.add_argument('output_format', help='trec format or genre format')
+    parser.add_argument('qrel_name')
     parser.add_argument('--clean_nil', type=bool, default=True)
+    parser.add_argument('--salience_threshold', type=int, default=0)
     
     args = parser.parse_args()
     
     input_file_path = args.input_file
     output_folder_path = args.output_folder_path
+    qrel_name = args.qrel_name
     if output_folder_path[-1:] != "/":
         output_folder_path += "/"
     output_format = args.output_format
     clean_nil = args.clean_nil
-    convert_prodigy_to_qrel(input_file_path, clean_nil)
+    salience_threshold = args.salience_threshold
+    convert_prodigy_to_qrel(input_file_path, clean_nil, salience_threshold)
     if output_format == 'trec':
-        to_trec(output_folder_path)
+        to_trec(output_folder_path, qrel_name)
     elif output_format == 'genre':
-        to_genre(output_folder_path)
+        to_genre(output_folder_path, qrel_name)
     else:
         print("please input correct format, either trec or genre")

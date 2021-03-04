@@ -39,7 +39,7 @@ def extract_sounds_content(input_folder_path):
                             continue
             f.close()
             
-def trec_formatter(doc_id, body):
+def trec_formatter(doc_id, body, title):
     url = "https://bbc.co.uk/" + doc_id[25:]
     content = ""
     content = (u'<DOC>\n')
@@ -51,6 +51,10 @@ def trec_formatter(doc_id, body):
     content += (u'\n')
     content += (u'</DOCHDR>\n')
     content += (u'<HTML>\n')
+    content += (u'<HEAD>\n')
+    content += title
+    content += (u'\n')
+    content += (u'</HEAD>\n')
     content += (u'<BODY>\n')
     content += body
     content += (u'\n')
@@ -60,12 +64,12 @@ def trec_formatter(doc_id, body):
     return content
 
 def sounds_to_trec(sounds_synopsis_dict, output_folder_path):
-    output_file = open(f"{output_folder_path}trec_sounds.gov2","w")
+    output_file = open(f"{output_folder_path}trec_sounds.trecweb","w")
     for sounds_id, sounds_info in sounds_synopsis_dict.items():
         sounds_title = sounds_info["title"]
         sounds_synopsis = sounds_info["synopsis"]
         sounds_body = sounds_title + " " + sounds_synopsis
-        trec_formatted_string = trec_formatter(sounds_id, sounds_body)
+        trec_formatted_string = trec_formatter(sounds_id, sounds_body, sounds_title)
         output_file.write(trec_formatted_string)
     output_file.close()
     
