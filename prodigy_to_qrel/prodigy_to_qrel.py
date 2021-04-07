@@ -95,6 +95,8 @@ def convert_prodigy_to_qrel(prodigy_file, clean_nil, salience_threshold):
             continue
         if "persona_relevance" not in annotation:
             continue
+        if "link_accuracy" not in annotation:
+            continue
         salience = annotation["salience_rating"]
         persona_relevance = annotation["persona_relevance"]
         link_accuracy = annotation["link_accuracy"]

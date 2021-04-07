@@ -69,7 +69,7 @@ def sounds_to_trec(sounds_synopsis_dict, output_folder_path):
         sounds_title = sounds_info["title"]
         sounds_synopsis = sounds_info["synopsis"]
         sounds_body = sounds_title + " " + sounds_synopsis
-        trec_formatted_string = trec_formatter(sounds_id, sounds_body, sounds_title)
+        trec_formatted_string = trec_formatter(sounds_id, sounds_synopsis, sounds_title)
         output_file.write(trec_formatted_string)
     output_file.close()
     
@@ -79,10 +79,11 @@ def sounds_to_json(sounds_synopsis_dict, output_folder_path):
     for sounds_id, sounds_info in sounds_synopsis_dict.items():
         sounds_title = sounds_info["title"]
         sounds_synopsis = sounds_info["synopsis"]
-        sounds_body = sounds_title + " " + sounds_synopsis
+        #sounds_body = sounds_title + " " + sounds_synopsis
         to_append_dict = {
             "id": sounds_id,
-            "contents": sounds_body,
+            "title": sounds_title,
+            "contents": sounds_synopsis,
         }
         output_json.append(to_append_dict)
     json.dump(output_json, output_file)

@@ -114,6 +114,12 @@ def to_genre(input_file, output_folder, run_name, corpus_dict, clean_nil):
         for entity in entity_list:
             predicted_entity_mention = entity["mention"]
             predicted_entity_link = entity["pred"]
+            scores = entity["scores"]
+            all_links = entity["links"]
+            for i in range(len(all_links)):
+                if all_links[i] == predicted_entity_link:
+                    score = scores[i]
+                    break
             all_mentions = find_all_mentions(doc_content, predicted_entity_mention)
             
             predicted_wikidata_id = convert_wikipedia_to_wikidata(predicted_entity_link)

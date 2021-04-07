@@ -142,6 +142,7 @@ def get_passages(article_dict, passage_size=100, window_size=50):
     output_dict = {}
     for article_id, article_content in article_dict.items():
         content_as_list = article_content["content"]
+        title = article_content["title"]
         slice_start = 0
         slice_end = passage_size
         sub_id = 0
@@ -150,12 +151,12 @@ def get_passages(article_dict, passage_size=100, window_size=50):
         content_len = len(content_broken_to_words_as_list)
         while (slice_end < content_len):
             passage = " ".join(content_broken_to_words_as_list[slice_start:slice_end])
-            output_dict[f"{article_id}.{sub_id}"] = passage
+            output_dict[f"{article_id}.{sub_id}"] = {"contents":passage, "title": title}
             slice_start += window_size
             slice_end += window_size
             sub_id += 1
         passage = " ".join(content_broken_to_words_as_list[slice_start:content_len])
-        output_dict[f"{article_id}.{sub_id}"] = passage
+        output_dict[f"{article_id}.{sub_id}"] = {"contents":passage, "title": title}
     return output_dict
 
 def trec_formatter(doc_id, body, title):
@@ -195,8 +196,10 @@ def to_trec_web(article_dict, passage_dict, output_folder):
         doc_only_output_file.write(trec_content)
         mixed_output_file.write(trec_content)
     
-    for passage_id, passage in passage_dict.items():
-        trec_content = trec_formatter(passage_id, passage, "")
+    for passage_id, passage_block in passage_dict.items():
+        passage = passage_block["contents"]
+        title = passage_block["title"]
+        trec_content = trec_formatter(passage_id, passage, title)
         passage_only_output_file.write(trec_content)
         mixed_output_file.write(trec_content)
     
@@ -214,18 +217,23 @@ def to_json(article_dict, passage_dict, output_folder):
     mixed_json = []
     
     for article_id, article_content in article_dict.items():
-        content_as_list = article_content["contents"]
+        title = article_content["title"]
+        content_as_list = article_content["content"]
         content_as_string = " ".join(content_as_list)
         to_append_dict = {
                 "id": article_id,
+                "title": title,
                 "contents": content_as_string
             }
         doc_only_json.append(to_append_dict)
         mixed_json.append(to_append_dict)
         
-    for passage_id, passage in passage_dict.items():
+    for passage_id, passage_block in passage_dict.items():
+        passage = passage_block["contents"]
+        title = passage_block["title"]
         to_append_dict = {
                 "id": passage_id,
+                "title": title,
                 "contents": passage
             }
         passage_only_json.append(to_append_dict)
