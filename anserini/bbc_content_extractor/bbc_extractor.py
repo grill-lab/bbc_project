@@ -17,12 +17,17 @@ acceptable_content_types = ["news/","new/","sports/","newsround/","sport/","food
 
 def parse_input(input_folder_path):
     for file in os.listdir(input_folder_path):
-        if (file[-5:] != ".json") and "newsround" not in file:
-            continue
-        with open(f"{input_folder_path}{file}") as f:
-            json_content = json.load(f)
-            input_json_list.append(json_content)
-        f.close()
+        full_path = os.path.join(input_folder_path, file)
+        if os.path.isdir(full_path):
+            print(file)
+            parse_input(full_path)
+        else:
+            if (file[-5:] != ".json") and "newsround" not in file:
+                continue
+            with open(full_path) as f:
+                json_content = json.load(f)
+                input_json_list.append(json_content)
+            f.close()
 
 def denoise_string(text):
     if text[-1:] in ['.','?','!']:
@@ -160,26 +165,34 @@ def get_passages(article_dict, passage_size=100, window_size=50):
     return output_dict
 
 def trec_formatter(doc_id, body, title):
-    url = "https://bbc.co.uk/" + doc_id[25:]
+    doc_id_2 = doc_id[:doc_id.rfind(".")]
+    if "." in doc_id:
+        url = "https://bbc.co.uk/" + doc_id_2[25:]
+    else:
+        url = "https://bbc.co.uk/" + doc_id[25:]
     content = ""
     content = (u'<DOC>\n')
     content += (u'<DOCNO>')
     content += doc_id
+    #content += (u'\n')
     content += (u'</DOCNO>\n')
     content += (u'<DOCHDR>\n')
-    content += url
     content += (u'\n')
     content += (u'</DOCHDR>\n')
-    content += (u'<HTML>\n')
-    content += (u'<HEAD>\n')
+    #content += (u'<HTML>\n')
+    content += (u'<TITLE>')
     content += title
-    content += (u'\n')
-    content += (u'</HEAD>\n')
+    #content += (u'\n')
+    content += (u'</TITLE>\n')
+    content += (u'<URL>')
+    content += url
+    #content += (u'\n')
+    content += (u'</URL>\n')
     content += (u'<BODY>\n')
     content += body
     content += (u'\n')
     content += (u'</BODY>\n')
-    content += (u'</HTML>\n')
+    #content += (u'</HTML>\n')
     content += (u'</DOC>\n')
     return content
 
