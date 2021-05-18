@@ -88,10 +88,12 @@ if __name__ == "__main__":
     n_item = kb["/w/item"]
     kb_len = len(kb)
     kb.freeze()
-   
+            
+                   
     x = 0
     i = 0
     h = open(os.path.join(output_folder, f"kb_index_{x}.jsonl"), "w+")
+    
     for f in kb:
         if f.isa(n_item):
             try:
@@ -110,17 +112,13 @@ if __name__ == "__main__":
                 print(f)
                 print(e)
                 print("___________________________________")
-                
-            
-                    
-    
- '''
+    '''
     for entity in names.lookup("Glasgow"):
         x = frame_to_json(entity)
         with open("./testjson.json", "w") as test_file:
             json.dump(x, test_file) 
 
-        break
+        break 
     '''
     '''
     
