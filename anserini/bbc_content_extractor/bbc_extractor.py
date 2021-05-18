@@ -10,10 +10,21 @@ last_updated_dict = {}
 bbc_thing_tags = {}
 raw_json = {}
 input_json_list = []
+sub_topic_dict = {}
 tag_re = re.compile(r'<[altText][^>]*>(.+?)</[altText]>')
 
 acceptable_content_types = ["news/","new/","sports/","newsround/","sport/","food/","music/","bitesize/","health/"]
 #paths = ["./bbc/news-20200101-20201115/","./bbc/news_av/"]
+
+def get_follow_up_candidates():
+    output = {}
+    for article_id in bbc_related_links.keys():
+        if article_id not in output:
+            output[article_id] = {"related":[], "sub_topics": [],"bbc_things":[]}
+        output[article_id]["related"] += bbc_related_links[article_id]
+        output[article_id]["sub_topics"] += sub_topic_dict[article_id]
+        output[article_id]["bbc_things"] += bbc_thing_tags[article_id]
+    return output
 
 def parse_input(input_folder_path):
     for file in os.listdir(input_folder_path):
@@ -23,6 +34,8 @@ def parse_input(input_folder_path):
             parse_input(full_path)
         else:
             if (file[-5:] != ".json") and "newsround" not in file:
+                continue
+            if ".ipynb" in full_path:
                 continue
             with open(full_path) as f:
                 json_content = json.load(f)
@@ -42,6 +55,7 @@ def denoise_string(text):
 def bbc_extract_single_block(content):
     extracted_text = ''
     extracted_potential_related_candidates = ''
+    sub_topics = []
     if content['type'] == 'paragraph' and content['markupType'] == 'plain_text':
         text = content['text']
         text_filtered = re.sub("<altText>.*?</altText>",'',text)
@@ -69,30 +83,33 @@ def bbc_extract_single_block(content):
     elif content['type'] == 'crosshead' and content['markupType'] == 'plain_text':
         #extracted_text += '<h2>' + content['text'] + '</h2>'
         extracted_text += content['text']
+        sub_topics.append(content['text'])
         
-    return (extracted_text, extracted_potential_related_candidates)
+    return (extracted_text, extracted_potential_related_candidates,sub_topics)
         
 def bbc_extract_full_block(contents):
     extracted_full_text = []
     extracted_potential_related_candidates = []
-    
+    all_sub_topics = []
     for content in contents:
         if content['type'] == 'list':
             for item in content['items']:
-                text, candidates = bbc_extract_single_block(content)
+                text, candidates, sub_topics = bbc_extract_single_block(content)
+                all_sub_topics += sub_topics
                 if text != "":
                     text = denoise_string(text)
                     extracted_full_text.append(text)
                 if candidates != "":
                     extracted_potential_related_candidates.append(candidates)
         else:
-            text, candidates = bbc_extract_single_block(content)
+            text, candidates, sub_topics = bbc_extract_single_block(content)
+            all_sub_topics += sub_topics
             if text != "":
                 text = denoise_string(text)
                 extracted_full_text.append(text)
             if candidates != "":
                 extracted_potential_related_candidates.append(candidates)
-    return (extracted_full_text, extracted_potential_related_candidates)
+    return (extracted_full_text, extracted_potential_related_candidates, all_sub_topics)
 
 
 def extract_all_content(input_json_list):         
@@ -110,6 +127,7 @@ def extract_all_content(input_json_list):
             bbc_article_dict[article_id] = {}
             bbc_related_links[article_id] = []
             bbc_thing_tags[article_id] = []
+            sub_topic_dict[article_id] = []
 
         if article_id in last_updated_dict:
             if (last_updated_date > last_updated_dict[article_id]):
@@ -122,9 +140,12 @@ def extract_all_content(input_json_list):
         last_updated_dict[article_id] = last_updated_date
         title = json_content['promo']['headlines']['headline']
         contents = json_content['content']['blocks']
-        extracted_text, potential_related_candidates = bbc_extract_full_block(contents)
+        extracted_text, potential_related_candidates, sub_topics = bbc_extract_full_block(contents)
+        
         bbc_article_dict[article_id]["title"] = title
         bbc_article_dict[article_id]["content"] = extracted_text
+        
+        sub_topic_dict[article_id] += sub_topics
 
         related_content_main_block = json_content['relatedContent']
         if "groups" in related_content_main_block:
@@ -277,6 +298,11 @@ if __name__ == "__main__":
     
     parse_input(input_folder_path)
     extract_all_content(input_json_list)
+    follow_up_candidates = get_follow_up_candidates()
+    
+    with open(os.path.join(output_folder, "offline_candidates.json" ), "w") as f:
+        json.dump(candidate_stuff, f)
+ 
     passage_dict = get_passages(bbc_article_dict, passage_size, window_size)
     if output_format == "trec":
         to_trec_web(bbc_article_dict, passage_dict, output_folder_path)
@@ -284,3 +310,4 @@ if __name__ == "__main__":
         to_json(bbc_article_dict, passage_dict, output_folder_path)
     else:
         print("provide correct output format")
+    
