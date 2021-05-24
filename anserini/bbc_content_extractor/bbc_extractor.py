@@ -300,8 +300,8 @@ if __name__ == "__main__":
     extract_all_content(input_json_list)
     follow_up_candidates = get_follow_up_candidates()
     
-    with open(os.path.join(output_folder, "offline_candidates.json" ), "w") as f:
-        json.dump(candidate_stuff, f)
+    with open(os.path.join(output_folder_path, "offline_candidates.json" ), "w") as f:
+        json.dump(follow_up_candidates, f)
  
     passage_dict = get_passages(bbc_article_dict, passage_size, window_size)
     if output_format == "trec":
