@@ -22,10 +22,13 @@ def extract_sounds_content(input_folder_path):
                                 title = ""
                             else:
                                 title = json_content["brand_title"]
+                            
+                            last_published_date = json_content["last_modified"]
                                 
                             if json_content["pid"] not in sounds_synopsis_dict:
                                 sounds_synopsis_dict[json_content["pid"]] = {}
                             sounds_synopsis_dict[json_content["pid"]]["title"] = title
+                            sounds_synopsis_dict[json_content["pid"]]["last_published"] = last_published_date
                             if "short" in synopsis:
                                 if synopsis["short"] != "":
                                     sounds_synopsis_dict[json_content["pid"]]["synopsis"] = synopsis["short"]
@@ -83,11 +86,13 @@ def sounds_to_json(sounds_synopsis_dict, output_folder_path):
     for sounds_id, sounds_info in sounds_synopsis_dict.items():
         sounds_title = sounds_info["title"]
         sounds_synopsis = sounds_info["synopsis"]
+        last_published_date = sounds_info["last_published"]
         #sounds_body = sounds_title + " " + sounds_synopsis
         to_append_dict = {
             "id": sounds_id,
             "title": sounds_title,
             "contents": sounds_synopsis,
+            "last_published": last_published_date,
         }
         output_json.append(to_append_dict)
     json.dump(output_json, output_file)

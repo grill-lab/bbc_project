@@ -52,6 +52,16 @@ def denoise_string(text):
     text = text.strip()
     return text
 
+def id_to_url(doc_id):
+    doc_id_2 = doc_id[:doc_id.rfind(".")]
+    if "urn:bbc:content:assetUri" in doc_id:
+        if "." in doc_id:
+            url = "https://bbc.co.uk/" + doc_id_2[25:]
+        else:
+            url = "https://bbc.co.uk/" + doc_id[25:]
+        return url
+    return doc_id
+
 def bbc_extract_single_block(content):
     extracted_text = ''
     extracted_potential_related_candidates = ''
@@ -118,6 +128,7 @@ def extract_all_content(input_json_list):
             continue
         article_id = json_content['metadata']['locators']['cpsUrn']
         last_updated_date = json_content['metadata']['lastUpdated']
+        
         if not any(content_type in article_id for content_type in acceptable_content_types):
             continue
             
@@ -138,12 +149,16 @@ def extract_all_content(input_json_list):
                 continue
 
         last_updated_dict[article_id] = last_updated_date
+        last_published_date = json_content['metadata']['lastPublished']
+        url = id_to_url(article_id)
         title = json_content['promo']['headlines']['headline']
         contents = json_content['content']['blocks']
         extracted_text, potential_related_candidates, sub_topics = bbc_extract_full_block(contents)
         
         bbc_article_dict[article_id]["title"] = title
         bbc_article_dict[article_id]["content"] = extracted_text
+        bbc_article_dict[article_id]["last_published"] = last_published_date
+        bbc_article_dict[article_id]["url"] = url
         
         sub_topic_dict[article_id] += sub_topics
 
@@ -169,6 +184,8 @@ def get_passages(article_dict, passage_size=100, window_size=50):
     for article_id, article_content in article_dict.items():
         content_as_list = article_content["content"]
         title = article_content["title"]
+        url = article_content["url"]
+        last_published_date = article_content["last_published"]
         slice_start = 0
         slice_end = passage_size
         sub_id = 0
@@ -177,12 +194,20 @@ def get_passages(article_dict, passage_size=100, window_size=50):
         content_len = len(content_broken_to_words_as_list)
         while (slice_end < content_len):
             passage = " ".join(content_broken_to_words_as_list[slice_start:slice_end])
-            output_dict[f"{article_id}.{sub_id}"] = {"contents":passage, "title": title}
+            output_dict[f"{article_id}.{sub_id}"] = {"contents":passage, 
+                                                     "title": title,
+                                                     "url": url,
+                                                     "last_published": last_published_date
+                                                    }
             slice_start += window_size
             slice_end += window_size
             sub_id += 1
         passage = " ".join(content_broken_to_words_as_list[slice_start:content_len])
-        output_dict[f"{article_id}.{sub_id}"] = {"contents":passage, "title": title}
+        output_dict[f"{article_id}.{sub_id}"] = {"contents":passage, 
+                                                     "title": title,
+                                                     "url": url,
+                                                     "last_published": last_published_date
+                                                    }
     return output_dict
 
 def trec_formatter(doc_id, body, title):
@@ -252,12 +277,16 @@ def to_json(article_dict, passage_dict, output_folder):
     
     for article_id, article_content in article_dict.items():
         title = article_content["title"]
+        url = article_content["url"]
+        last_published_date = article_content["last_published"]
         content_as_list = article_content["content"]
         content_as_string = " ".join(content_as_list)
         to_append_dict = {
                 "id": article_id,
                 "title": title,
-                "contents": content_as_string
+                "contents": content_as_string,
+                "url": url, 
+                "last_published": last_published_date,
             }
         doc_only_json.append(to_append_dict)
         mixed_json.append(to_append_dict)
@@ -265,10 +294,14 @@ def to_json(article_dict, passage_dict, output_folder):
     for passage_id, passage_block in passage_dict.items():
         passage = passage_block["contents"]
         title = passage_block["title"]
+        url = article_content["url"]
+        last_published_date = article_content["last_published"]
         to_append_dict = {
                 "id": passage_id,
                 "title": title,
-                "contents": passage
+                "contents": passage,
+                "url": url, 
+                "last_published": last_published_date,
             }
         passage_only_json.append(to_append_dict)
         mixed_json.append(to_append_dict)

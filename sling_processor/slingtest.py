@@ -4,6 +4,12 @@ import json
 import sys
 import argparse
 import os
+import re
+
+def cleanhtml(raw_html):
+    cleanr = re.compile('<.*?>')
+    cleantext = re.sub(cleanr, '', raw_html)
+    return cleantext
 
 def get_string_name_from_sling_object(item):
     if type(item) is sling.Frame:
@@ -27,7 +33,14 @@ def check_if_frame_wikidata_item_2(item):
     return False
     
 def frame_to_json(frame):
-    output_json = {"name": "", "category": [], "related_entities": [], "attributes": [], "contents": "", "id": ""}
+    # Set up basic fields/variables
+    output_json = {"name": "", 
+                   "category": [], 
+                   "related_entities": [], 
+                   "attributes": [], 
+                   "contents": "", 
+                   "id": "", 
+                   "related_entities_id": []}
     name = frame.name
     if type(name) is not str:
         return {}
@@ -39,6 +52,10 @@ def frame_to_json(frame):
         if key_description == "/w/item/category":
             output_json["category"].append(get_string_name_from_sling_object(value))
             continue
+        elif key_description == "BBC Things ID":
+            output_json["BBC Things ID"] = get_string_name_from_sling_object(value)
+        else:
+            pass
         
         value_description = value
         if type(value_description) == str:
@@ -52,6 +69,7 @@ def frame_to_json(frame):
             elif type(value_description) is sling.Frame:
                 if check_if_frame_wikidata_item_2(value_description):
                     output_json["related_entities"].append(value_description.name)
+                    output_json["related_entities_id"].append(value_description.id)
                 else:
                     for k, v in value_description:                            
                         inner_k = get_string_name_from_sling_object(k)
@@ -61,13 +79,18 @@ def frame_to_json(frame):
                         if type(v) is sling.Frame:
                             if check_if_frame_wikidata_item_2(v):
                                 output_json["related_entities"].append(v.name)
+                                output_json["related_entities_id"].append(v.id)
+            elif type(value_description) == int:
+                output_json["attributes"].append([key_description, value_description])
             else:
                 pass
+        elif type(value_description) == int:
+            output_json["attributes"].append([key_description, value_description])
         else:
             pass
-                
-    for predicate, objects in output_json["attributes"]:
-        output_json["contents"] += f"{predicate} {objects} "
+    output_json["contents"] = "feature removed for now"            
+    #for predicate, objects in output_json["attributes"]:
+    #    output_json["contents"] += f"{predicate} {objects} "
     return output_json
         
 if __name__ == "__main__":
@@ -88,6 +111,48 @@ if __name__ == "__main__":
     n_item = kb["/w/item"]
     kb_len = len(kb)
     kb.freeze()
+    
+    x = 0
+    count = 0
+    h = open(os.path.join(output_folder, f"kb_index_{x}.jsonl"), "w+")
+    error_file = open(os.path.join(output_folder, "error_log.txt"), "w+")
+    for i in range(10):
+        corpus = sling.Corpus(f"./wiki/en/documents-0000{i}-of-00010.rec", commons=kb)
+        for document in corpus:
+            try:
+                frame_object = document.frame
+                text = document.text.decode()
+                if len(text) > 0:
+                    text = text.split("\n")[0]
+                    text = cleanhtml(text)
+                corr_wd_id = frame_object["/wp/page/item"]
+                frame_as_json = frame_to_json(corr_wd_id)
+                frame_as_json["description"] = text
+                frame_as_json["wp_name"] =  frame_object["/wp/page/title"]
+                frame_as_json["wp_url"] = frame_object["url"]
+                if "id" in frame_as_json:
+                    h.write(json.dumps(frame_as_json))
+                    h.write("\n")
+                    count += 1
+                if count % 10000 == 0:
+                    print(f"DONE: {count} / {kb_len}")
+                if count % 10000000 == 0:
+                    h.close()
+                    x += 1
+                    h = open(f"./index_collections/index_collection_3/kb_index_{x}.json", "w+")
+            except Exception as e:
+                error_file.write(f"{e} \n {document} \n ___________________________________")
+    h.close()
+
+    '''
+    for entity in names.lookup("Glasgow"):
+        #print(entity)
+        pprint.pprint(frame_to_json(entity))
+        #x = frame_to_json(entity)
+        #with open("./testjson.json", "w") as test_file:
+            #json.dump(x, test_file) 
+
+        break
             
                    
     x = 0
@@ -112,13 +177,6 @@ if __name__ == "__main__":
                 print(f)
                 print(e)
                 print("___________________________________")
-    '''
-    for entity in names.lookup("Glasgow"):
-        x = frame_to_json(entity)
-        with open("./testjson.json", "w") as test_file:
-            json.dump(x, test_file) 
-
-        break 
     '''
     '''
     
